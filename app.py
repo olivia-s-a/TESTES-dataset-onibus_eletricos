@@ -271,7 +271,7 @@ fig4 = px.line(emissoes_evitadas, x="Horário do dia", y="Emissões de CO₂ (?)
 fig4.update_traces(line_color="#00cc96", hovertemplate="Emissões: %{y:.5f} (?)<extra></extra>",
                    hoverlabel=dict(font_color="black", bgcolor="white"))
 fig4.update_layout(plot_bgcolor="white",
-                   xaxis=dict(title_font_color="black", tickfont_color="black"),
+                   xaxis=dict(title_font_color="black", tickfont_color="black", tickangle=45),
                    yaxis=dict(title_font_color="black", tickfont_color="black"))
  
 with st.expander("Clique para as visualizações"):
