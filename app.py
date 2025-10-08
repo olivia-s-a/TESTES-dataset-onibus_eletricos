@@ -249,16 +249,16 @@ df_eletricos = gdf_final[gdf_final["is_eletrico"] == True]
 df_nao_eletricos = gdf_final[gdf_final["is_eletrico"] == False]
  
 emissoes = df_nao_eletricos.groupby("hora_min")["emissao_co2"].sum().cumsum().sort_index().reset_index()
-emissoes.columns = ["Horário do dia", "Emissões de CO₂ (?)"]
+emissoes.columns = ["Horário do dia", "Emissões de CO₂ (t)"]
  
 emissoes_evitadas = df_eletricos.groupby("hora_min")["emissao_co2"].sum().cumsum().sort_index().reset_index()
-emissoes_evitadas.columns = ["Horário do dia", "Emissões de CO₂ (?)"]
+emissoes_evitadas.columns = ["Horário do dia", "Emissões de CO₂ (t)"]
  
  
 # Emissões acumuladas
-fig3 = px.line(emissoes, x="Horário do dia", y="Emissões de CO₂ (?)", markers=True,
+fig3 = px.line(emissoes, x="Horário do dia", y="Emissões de CO₂ (t)", markers=True,
                title="Emissões de CO₂ acumuladas ao longo do dia - ônibus não elétricos")
-fig3.update_traces(line_color="#d53e4f", hovertemplate="Emissões: %{y:.5f} (?)<extra></extra>",
+fig3.update_traces(line_color="#d53e4f", hovertemplate="Emissões: %{y:.5f} (t)<extra></extra>",
                    hoverlabel=dict(font_color="black", bgcolor="white"))
 fig3.update_layout(plot_bgcolor="white",
                    xaxis=dict(title_font_color="black", tickfont_color="black", tickangle=45),
@@ -266,9 +266,9 @@ fig3.update_layout(plot_bgcolor="white",
  
  
 # Emissões evitadas
-fig4 = px.line(emissoes_evitadas, x="Horário do dia", y="Emissões de CO₂ (?)", markers=True,
+fig4 = px.line(emissoes_evitadas, x="Horário do dia", y="Emissões de CO₂ (t)", markers=True,
                title="Emissões de CO₂ evitadas ao longo do dia - ônibus elétricos")
-fig4.update_traces(line_color="#00cc96", hovertemplate="Emissões: %{y:.5f} (?)<extra></extra>",
+fig4.update_traces(line_color="#00cc96", hovertemplate="Emissões: %{y:.5f} (t)<extra></extra>",
                    hoverlabel=dict(font_color="black", bgcolor="white"))
 fig4.update_layout(plot_bgcolor="white",
                    xaxis=dict(title_font_color="black", tickfont_color="black", tickangle=45),
@@ -331,10 +331,10 @@ with abas[0]:
             custom_data=custom_cols + ["distancia"]
         )
         fig_dist.update_traces(
-            hovertemplate="<b>Distrito</b>: %{customdata[0]}<br>Distância: %{customdata[1]:.0f} (?)<extra></extra>",
+            hovertemplate="<b>Distrito</b>: %{customdata[0]}<br>Distância: %{customdata[1]:.0f} (km)<extra></extra>",
             hoverlabel=dict(font=dict(color="black"), bgcolor="white"
         ))
-        fig_dist.update_coloraxes(colorbar_title="Distância (?)", colorbar_title_side="right",
+        fig_dist.update_coloraxes(colorbar_title="Distância (km)", colorbar_title_side="right",
                                   colorbar_title_font=dict(color="black"),
                                   colorbar_tickfont=dict(color="black"))
         fig_dist.update_layout(margin={"r":300,"t":0,"l":300,"b":0}, height=600)
@@ -361,10 +361,10 @@ with abas[1]:
             custom_data=custom_cols + ["emissao_nao_eletricos"]
         )
         fig_nao.update_traces(
-            hovertemplate="<b>Distrito</b>: %{customdata[0]}<br>Emissão: %{customdata[1]:,.5f} (?)<extra></extra>",
+            hovertemplate="<b>Distrito</b>: %{customdata[0]}<br>Emissão: %{customdata[1]:,.5f} (t)<extra></extra>",
             hoverlabel=dict(font=dict(color="black"), bgcolor="white"
         ))
-        fig_nao.update_coloraxes(colorbar_title="Emissão de CO₂ (?)", colorbar_title_side="right",
+        fig_nao.update_coloraxes(colorbar_title="Emissão de CO₂ (t)", colorbar_title_side="right",
                                  colorbar_title_font=dict(color="black"),
                                  colorbar_tickfont=dict(color="black"))
         fig_nao.update_layout(margin={"r":300,"t":0,"l":300,"b":0}, height=600)
@@ -391,10 +391,10 @@ with abas[2]:
             custom_data=custom_cols + ["emissao_eletricos"]
         )
         fig_ele.update_traces(
-            hovertemplate="<b>Distrito</b>: %{customdata[0]}<br>Emissão evitada: %{customdata[1]:,.5f} (?)<extra></extra>",
+            hovertemplate="<b>Distrito</b>: %{customdata[0]}<br>Emissão evitada: %{customdata[1]:,.5f} (t)<extra></extra>",
             hoverlabel=dict(font=dict(color="black"), bgcolor="white"
         ))
-        fig_ele.update_coloraxes(colorbar_title="Emissão de CO₂ evitada (?)", colorbar_title_side="right",
+        fig_ele.update_coloraxes(colorbar_title="Emissão de CO₂ evitada (t)", colorbar_title_side="right",
                                  colorbar_title_font=dict(color="black"),
                                  colorbar_tickfont=dict(color="black"))
         fig_ele.update_layout(margin={"r":300,"t":0,"l":300,"b":0}, height=600)
@@ -414,7 +414,7 @@ with st.expander("Clique para simular"):
     media_evitada = df_eletricos["emissao_co2"].mean()
  
     st.write(f"Em média, cada ônibus elétrico evita, no dia, aproximadamente, "
-             f"**{media_evitada:,.2f} (?) de CO₂**.")
+             f"**{media_evitada:,.5f} (t) de CO₂**.")
  
     st.markdown("<br>", unsafe_allow_html=True)
  
@@ -429,7 +429,7 @@ with st.expander("Clique para simular"):
     st.markdown("<br>", unsafe_allow_html=True)
  
     st.success(f"Com mais **{novos_onibus} ônibus elétricos**, serão evitados, no dia, aproximadamente, "
-               f"**{emissao_adicional:,.2f} (?) de CO₂**.")
+               f"**{emissao_adicional:,.5f} (t) de CO₂**.")
     
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -442,14 +442,14 @@ with st.expander("Clique para simular"):
 
     df_proj = pd.DataFrame({
         "Dias": range(1, dias + 1),
-        "Emissões de CO₂ (?)": [emissao_adicional * d for d in range(1, dias + 1)]
+        "Emissões de CO₂ (t)": [emissao_adicional * d for d in range(1, dias + 1)]
     })
 
-    fig = px.line(df_proj, x="Dias", y="Emissões de CO₂ (?)",
+    fig = px.line(df_proj, x="Dias", y="Emissões de CO₂ (t)",
                   title=f"Projeção de emissões evitadas nos próximos {dias} dias",
                   markers=True)
     
-    fig.update_traces(line_color="#00cc96", hovertemplate="Dia: %{x} <br> Emissões: %{y:.5f} (?)<extra></extra>",
+    fig.update_traces(line_color="#00cc96", hovertemplate="Dia: %{x} <br> Emissões: %{y:.5f} (t)<extra></extra>",
                       hoverlabel=dict(font_color="black", bgcolor="white"))
     
     fig.update_layout(plot_bgcolor="white",
