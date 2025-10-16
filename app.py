@@ -158,7 +158,7 @@ def carregar_dados():
     distritos_final = load_shp("distritos_final.shp")
     return gdf_final, df_trips, distritos_final
  
-gdf_final, df_trips, distritos_final = carregar_dados()
+gdf_final, df_trips, gdf_overlay = carregar_dados()
  
  
  
@@ -288,19 +288,19 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ----- MAPAS POR DISTRITO -----
 st.markdown("## Mapas coropléticos por distrito")
  
-distritos_final["emissao_nao_eletricos"] = np.where(
-    distritos_final["is_eletric"] == False,
-    distritos_final["emissao_co"],
+gdf_overlay["emissao_nao_eletricos"] = np.where(
+    gdf_overlay["is_eletric"] == False,
+    gdf_overlay["emissao_co"],
     0
 )
  
-distritos_final["emissao_eletricos"] = np.where(
-    distritos_final["is_eletric"] == True,
-    distritos_final["emissao_co"],
+gdf_overlay["emissao_eletricos"] = np.where(
+    gdf_overlay["is_eletric"] == True,
+    gdf_overlay["emissao_co"],
     0
 )
  
-distritos_final = distritos_final.to_crs(epsg=4326)
+distritos_final = gdf_overlay.to_crs(epsg=4326)
  
 abas = st.tabs([
     "Distância percorrida",
