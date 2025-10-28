@@ -438,105 +438,94 @@ def sim_monte_carlo(df_posicoes, Y, N=2000, seed=42):
         "resultados": resultados
     }
 
-
 dias_unicos = sorted(df_posicoes["dia"].unique())
 dias_selecionados = st.multiselect(
     "Selecione um ou mais dias para incluir na simulação:",
     dias_unicos,
-    default=[dias_unicos[0]]
+    #default=[dias_unicos[0]]
+    default=dias_unicos
 )
 
-
 df_filtrado = df_posicoes[df_posicoes["dia"].isin(dias_selecionados)]
-#st.write(f"Total de registros filtrados: {len(df_filtrado)}")
 
 with st.expander("Clique para simular"):
 
     st.write("Digite a quantidade de novos ônibus elétricos para a simulação:")
     Y = st.number_input("", min_value=1, format="%d")
 
-    # ----- EXECUÇÃO -----
     if st.button("Executar simulação"):
         try:
             resultado = sim_monte_carlo(df_filtrado, Y, N=2000)
 
             st.markdown("<br>", unsafe_allow_html=True)
             st.success(
-                f"Com {Y} novos ônibus elétricos, a **emissão média evitada** é de aproximadamente "
-                f"**{resultado['impacto_medio']:.5f} (t) de CO₂** no período simulado."
-            )
-
-            #st.write(f"Intervalo de confiança (95%): **[{resultado['IC_inf']:.5f}, {resultado['IC_sup']:.5f}]** (t CO₂)")
-            #st.write(f"Cenário máximo: **{resultado['impacto_maximo']:.5f} (t CO₂)**")
-            #st.write(f"Diferença entre cenário máximo e médio: **{resultado['impacto_diferenca']:.5f} (t CO₂)**")
+                        f"Com {Y} novos ônibus elétricos, a **emissão média evitada** é de aproximadamente "
+                        f"**{resultado['impacto_medio']:.5f} (t) de CO₂** no período simulado."
+                    )
 
             st.markdown("<br>", unsafe_allow_html=True)
             st.write("Digite o período da projeção (em dias):")
             dias = st.number_input("", min_value=1, value=30, format="%d")
 
             df_proj = pd.DataFrame({
-                "Dias": range(1, dias + 1),
-                "Emissões de CO₂ (t)": [resultado["impacto_medio"] * d for d in range(1, dias + 1)]
-            })
+                        "Dias": range(1, dias + 1),
+                        "Emissões de CO₂ (t)": [resultado["impacto_medio"] * d for d in range(1, dias + 1)]
+                    })
 
-            # ----- GRÁFICO DE PROJEÇÃO -----
+                    # projeção
             fig_proj = px.line(
-                df_proj, x="Dias", y="Emissões de CO₂ (t)",
-                title=f"Projeção de emissões evitadas (Monte Carlo) - próximos {dias} dias",
-                markers=True
-            )
+                        df_proj, x="Dias", y="Emissões de CO₂ (t)",
+                        title=f"Projeção de emissões evitadas (Monte Carlo) - próximos {dias} dias",
+                        markers=True
+                    )
 
             fig_proj.update_traces(
-                line_color="#00cc96",
-                hovertemplate="Dia: %{x} <br> Emissões: %{y:.5f} (t)<extra></extra>",
-                hoverlabel=dict(font_color="black", bgcolor="white")
-            )
+                        line_color="#00cc96",
+                        hovertemplate="Dia: %{x} <br> Emissões: %{y:.5f} (t)<extra></extra>",
+                        hoverlabel=dict(font_color="black", bgcolor="white")
+                    )
 
             fig_proj.update_layout(
-                plot_bgcolor="white",
-                xaxis=dict(title_font_color="black", tickfont_color="black"),
-                yaxis=dict(title_font_color="black", tickfont_color="black")
-            )
+                        plot_bgcolor="white",
+                        xaxis=dict(title_font_color="black", tickfont_color="black"),
+                        yaxis=dict(title_font_color="black", tickfont_color="black")
+                    )
 
             st.plotly_chart(fig_proj, use_container_width=True)
 
-            # ----- GRÁFICO DE DENSIDADE SIMPLIFICADO -----
+                    # distribuição
             densidade = gaussian_kde(resultado["resultados"])
             x_vals = np.linspace(min(resultado["resultados"]), max(resultado["resultados"]), 200)
             y_vals = densidade(x_vals)
 
             fig_kde = go.Figure()
 
-            # Curva de densidade
             fig_kde.add_trace(go.Scatter(
-                x=x_vals, y=y_vals,
-                mode="lines",
-                line=dict(color="#00cc96", width=3),
-                fill="tozeroy",
-                name=f"Densidade (Y={Y})"
-            ))
+                        x=x_vals, y=y_vals,
+                        mode="lines",
+                        line=dict(color="#00cc96", width=3),
+                        fill="tozeroy",
+                        name=f"Densidade (Y={Y})"
+                    ))
 
-            # Linha vertical da média
             fig_kde.add_vline(
-                x=resultado["impacto_medio"],
-                line_dash="dash",
-                line_color="black",
-                annotation_text="Média",
-                annotation_position="top right"
-            )
+                        x=resultado["impacto_medio"],
+                        line_dash="dash",
+                        line_color="black",
+                        annotation_text="Média",
+                        annotation_position="top right"
+                    )
 
-            # Layout geral
             fig_kde.update_layout(
-                title=f"Densidade de probabilidade das emissões evitadas (Monte Carlo, N={2000})",
-                xaxis_title="Emissões evitadas (t CO₂ / período)",
-                yaxis_title="Densidade de probabilidade",
-                plot_bgcolor="white",
-                xaxis=dict(title_font_color="black", tickfont_color="black"),
-                yaxis=dict(title_font_color="black", tickfont_color="black")
-            )
+                        title=f"Densidade de probabilidade das emissões evitadas (Monte Carlo, N = {2000})",
+                        xaxis_title="Emissões evitadas (t CO₂ / período)",
+                        yaxis_title="Densidade de probabilidade",
+                        plot_bgcolor="white",
+                        xaxis=dict(title_font_color="black", tickfont_color="black"),
+                        yaxis=dict(title_font_color="black", tickfont_color="black")
+                    )
 
             st.plotly_chart(fig_kde, use_container_width=True)
-
 
         except ValueError:
             st.error("Erro: o número de ônibus escolhidos (Y) não pode ser maior que o número total de registros no dataset.")
@@ -570,8 +559,8 @@ with col_center:
             data=df_trips,
             get_path="coordinates",
             get_timestamps="timestamps",
-            get_color=[255, 0, 0],
-            #get_color="color",
+            #get_color=[255, 0, 0],
+            get_color="color",
             opacity=0.8,
             width_min_pixels=5,
             rounded=True,
