@@ -442,7 +442,6 @@ dias_unicos = sorted(df_posicoes["dia"].unique())
 dias_selecionados = st.multiselect(
     "Selecione um ou mais dias para incluir na simulação:",
     dias_unicos,
-    #default=[dias_unicos[0]]
     default=dias_unicos
 )
 
@@ -472,10 +471,10 @@ with st.expander("Clique para simular"):
                         "Emissões de CO₂ (t)": [resultado["impacto_medio"] * d for d in range(1, dias + 1)]
                     })
 
-                    # projeção
+            # projeção
             fig_proj = px.line(
                         df_proj, x="Dias", y="Emissões de CO₂ (t)",
-                        title=f"Projeção de emissões evitadas (Monte Carlo) - próximos {dias} dias",
+                        title=f"Projeção de emissões evitadas",
                         markers=True
                     )
 
@@ -493,7 +492,7 @@ with st.expander("Clique para simular"):
 
             st.plotly_chart(fig_proj, use_container_width=True)
 
-                    # distribuição
+            # distribuição
             densidade = gaussian_kde(resultado["resultados"])
             x_vals = np.linspace(min(resultado["resultados"]), max(resultado["resultados"]), 200)
             y_vals = densidade(x_vals)
@@ -517,8 +516,8 @@ with st.expander("Clique para simular"):
                     )
 
             fig_kde.update_layout(
-                        title=f"Densidade de probabilidade das emissões evitadas (Monte Carlo, N = {2000})",
-                        xaxis_title="Emissões evitadas (t CO₂ / período)",
+                        title=f"Distribuição das emissões evitadas",
+                        xaxis_title="Emissões evitadas (t CO₂ / no período)",
                         yaxis_title="Densidade de probabilidade",
                         plot_bgcolor="white",
                         xaxis=dict(title_font_color="black", tickfont_color="black"),
