@@ -410,15 +410,13 @@ st.markdown("<br>", unsafe_allow_html=True)
  
 
 
-# ----- SIMULAÇÃO DE EMISSÕES (MONTE CARLO – VERSÃO FINAL) -----
+# ----- SIMULAÇÃO DE EMISSÕES EVITADAS (MONTE CARLO) -----
 st.markdown("## Simulação de emissões evitadas (Monte Carlo)")
 
-# Base apenas com ônibus a diesel
 df_diesel = gdf_final[gdf_final["is_eletrico"] == False].copy()
 
-# -----------------------------
-# Funções de simulação
-# -----------------------------
+
+
 def sim_monte_carlo(df_diesel, Y, N=2000, dias=365):
 
     resultados_diarios = []
@@ -448,7 +446,6 @@ def sim_monte_carlo(df_diesel, Y, N=2000, dias=365):
         "resultados_acumulados": resultados_acumulados
     }
 
-
 def estimar_frota_para_meta(
     df_diesel,
     meta_emissao,
@@ -474,9 +471,7 @@ def estimar_frota_para_meta(
     return pd.DataFrame(resultados)
 
 
-# -----------------------------
-# Interface
-# -----------------------------
+
 with st.expander("Clique para simular"):
 
     modo = st.radio(
@@ -510,9 +505,6 @@ with st.expander("Clique para simular"):
 
         executar = st.button("Estimar frota necessária")
 
-    # -----------------------------
-    # Execução
-    # -----------------------------
     if executar:
         try:
             if modo == "Meta de emissão evitada":
@@ -529,9 +521,6 @@ with st.expander("Clique para simular"):
 
             resultado = sim_monte_carlo(df_diesel, Y, dias=dias)
 
-            # -----------------------------
-            # Tabela resumo
-            # -----------------------------
             tabela_resumo = pd.DataFrame([{
                 "Quantidade de ônibus elétricos (Y)": Y,
                 "Emissão média evitada (t CO₂/dia)": resultado["impacto_medio_dia"],
@@ -544,9 +533,6 @@ with st.expander("Clique para simular"):
             st.markdown("### Resumo da simulação")
             st.dataframe(tabela_resumo, use_container_width=True)
 
-            # -----------------------------
-            # Projeção temporal
-            # -----------------------------
             df_proj = pd.DataFrame({
                 "Dias": range(1, dias + 1),
                 "Emissões evitadas (t CO₂)": resultado["impacto_medio_dia"] * np.arange(1, dias + 1)
@@ -574,9 +560,6 @@ with st.expander("Clique para simular"):
 
             st.plotly_chart(fig_proj, use_container_width=True)
 
-            # -----------------------------
-            # Distribuição (KDE)
-            # -----------------------------
             densidade = gaussian_kde(resultado["resultados_diarios"])
             x_vals = np.linspace(
                 resultado["resultados_diarios"].min(),
