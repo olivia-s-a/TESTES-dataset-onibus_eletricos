@@ -159,10 +159,10 @@ def carregar_dados():
     df_trips = load_csv("df_trips.csv")
     distritos_final = load_shp("distritos_final.shp")
     df_posicoes = load_csv("df_posicoes_dagster.csv")
-    return gdf_final, df_trips, distritos_final, df_posicoes
- 
-gdf_final, df_trips, distritos_final, df_posicoes = carregar_dados()
- 
+    sim_dagster = load_csv('calculo-emissao-poluentes-diario_2026-01-01_silver.csv')
+    return gdf_final, df_trips, distritos_final, df_posicoes, sim_dagster
+
+gdf_final, df_trips, distritos_final, df_posicoes, sim_dagster = carregar_dados()
  
  
 # ----- GRÁFICOS 1 -----
@@ -413,186 +413,238 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ----- SIMULAÇÃO DE EMISSÕES EVITADAS (MONTE CARLO) -----
 st.markdown("## Simulação de emissões evitadas (Monte Carlo)")
 
-df_diesel = gdf_final[gdf_final["is_eletrico"] == False].copy()
+sim_dagster[['emissao_co2', 'emissao_nox', 'emissao_mp']] /= 1000 # converter kg para toneladas
 
-
-def sim_monte_carlo(df_diesel, Y, N=2000, dias=365):
-
-    resultados_diarios = []
-
+POLUENTES = {
+    "emissao_co2": "CO₂ (t/dia)",
+    "emissao_nox": "NOx (t/dia)",
+    "emissao_mp": "MP (t/dia)"
+}
+ 
+ 
+def sim_monte_carlo(
+    sim_dagster,
+    Y,
+    poluentes,
+    N=2000,
+    dias=365
+):
+ 
+    resultados_diarios = {p: [] for p in poluentes}
+ 
     for _ in range(N):
-        amostra = df_diesel.sample(n=Y, replace=False)
-        emissao_total = amostra["emissao_co2"].sum()
-        resultados_diarios.append(emissao_total)
+        amostra = sim_dagster.sample(n=Y, replace=False)
 
-    resultados_diarios = np.array(resultados_diarios)
-    resultados_acumulados = resultados_diarios * dias
+        for p in poluentes:
+            resultados_diarios[p].append(amostra[p].sum())
 
-    impacto_medio = resultados_diarios.mean()
-    impacto_maximo = df_diesel.nlargest(Y, "emissao_co2")["emissao_co2"].sum()
-
+    for p in poluentes:
+        resultados_diarios[p] = np.array(resultados_diarios[p])
+ 
+    resultados_acumulados = {
+        p: resultados_diarios[p] * dias
+        for p in poluentes
+    }
+ 
+    impacto_medio = {
+        p: resultados_diarios[p].mean()
+        for p in poluentes
+    }
+ 
+    impacto_maximo = {
+        p: sim_dagster.nlargest(Y, p)[p].sum()
+        for p in poluentes
+    }
+ 
     return {
         "Y": Y,
         "dias": dias,
         "impacto_medio_dia": impacto_medio,
         "impacto_maximo_dia": impacto_maximo,
-        "impacto_medio_acumulado": resultados_acumulados.mean(),
-        "resultados_diarios": resultados_diarios,
-        "resultados_acumulados": resultados_acumulados
+        "impacto_medio_acumulado": {
+            p: resultados_acumulados[p].mean()
+            for p in poluentes
+        },
+        "resultados_diarios": resultados_diarios
     }
-
+ 
+ 
 def estimar_frota_para_meta(
-    df_diesel,
+    sim_dagster,
     meta_emissao,
+    poluentes,
     N=2000,
     Y_min=1,
-    Y_max=len(df_diesel),
+    Y_max=None,
     passo=10
 ):
-
+ 
+    if Y_max is None:
+        Y_max = len(sim_dagster)
+ 
     resultados = []
-
+ 
     for Y in range(Y_min, Y_max + 1, passo):
-        sim = sim_monte_carlo(df_diesel, Y, N=N, dias=1)
-
+        sim = sim_monte_carlo(
+            sim_dagster,
+            Y,
+            poluentes=poluentes,
+            N=N,
+            dias=1
+        )
+ 
+        medias = sim["impacto_medio_dia"]
+ 
         resultados.append({
-            "Y": Y,
-            "Emissão média evitada (t CO₂/dia)": sim["impacto_medio_dia"]
+            "Quantidade de ônibus elétricos": Y,
+            **{POLUENTES[p]: medias[p] for p in poluentes}
         })
 
-        if sim["impacto_medio_dia"] >= meta_emissao:
+
+        if all(medias[p] >= meta_emissao for p in poluentes):
             break
-
+ 
     return pd.DataFrame(resultados)
-
-
-
+ 
+ 
 with st.expander("Clique para simular"):
-
     modo = st.radio(
         "Escolha o tipo de simulação:",
-        ["Quantidade de ônibus elétricos", "Meta de emissão evitada"]
+        [
+            "Quantidade de ônibus elétricos",
+            "Meta de emissões evitadas (todos os poluentes)"
+        ]
     )
-
+ 
     dias = st.number_input(
         "Período da projeção (em dias):",
         min_value=1,
         value=365,
         format="%d"
     )
-
+ 
     if modo == "Quantidade de ônibus elétricos":
         Y = st.number_input(
             "Quantidade de novos ônibus elétricos:",
             min_value=1,
-            max_value=len(df_diesel),
+            max_value=len(sim_dagster),
             format="%d"
         )
 
         executar = st.button("Executar simulação")
-
+ 
     else:
         meta = st.number_input(
-            "Meta de emissão evitada (t CO₂ por dia):",
-            min_value=0.01,
-            format="%.2f"
+            "Meta diária de emissões evitadas (t/dia):",
+            min_value=0.001,
+            format="%.4f"
         )
 
         executar = st.button("Estimar frota necessária")
-
+ 
+ 
     if executar:
+
         try:
-            if modo == "Meta de emissão evitada":
-                df_meta = estimar_frota_para_meta(df_diesel, meta_emissao=meta)
-
-                Y = int(df_meta.iloc[-1]["Y"])
-
-                st.success(
-                    f"Para atingir aproximadamente **{meta:.2f} t CO₂/dia**, "
-                    f"estima-se a necessidade de **{Y} novos ônibus elétricos**."
+    
+            if modo == "Meta de emissões evitadas (todos os poluentes)":
+                df_meta = estimar_frota_para_meta(
+                    sim_dagster,
+                    meta_emissao=meta,
+                    poluentes=list(POLUENTES.keys())
                 )
-
-                st.dataframe(df_meta.round(4), use_container_width=True)
-
-            resultado = sim_monte_carlo(df_diesel, Y, dias=dias)
-
-            tabela_resumo = pd.DataFrame([{
-                "Quantidade de ônibus elétricos (Y)": Y,
-                "Emissão média evitada (t CO₂/dia)": resultado["impacto_medio_dia"],
-                "Cenário máximo (t CO₂/dia)": resultado["impacto_maximo_dia"],
-                "Emissão média acumulada (t CO₂)": resultado["impacto_medio_acumulado"]
-            }]).round(5)
-
+    
+                Y = int(df_meta.iloc[-1]["Quantidade de ônibus elétricos"])
+    
+                st.success(
+                    f"Para atingir pelo menos **{meta:.4f} t/dia** de emissões evitadas "
+                    f"em **todos os poluentes**, estima-se a necessidade de "
+                    f"**{Y} novos ônibus elétricos**."
+                )
+    
+                st.dataframe(df_meta.round(5), use_container_width=True)
+    
+            resultado = sim_monte_carlo(
+                sim_dagster,
+                Y,
+                poluentes=list(POLUENTES.keys()),
+                dias=dias
+            )
+    
+    
+            resumo = {
+                "Quantidade de ônibus elétricos": Y
+            }
+    
+            for p, label in POLUENTES.items():
+                resumo[f"{label} – média diária"] = resultado["impacto_medio_dia"][p]
+                resumo[f"{label} – cenário máximo"] = resultado["impacto_maximo_dia"][p]
+                resumo[f"{label} – acumulado no período"] = resultado["impacto_medio_acumulado"][p]
+    
+            tabela_resumo = pd.DataFrame([resumo]).round(5)
+    
             st.markdown("### Resumo da simulação")
+
             st.dataframe(tabela_resumo, use_container_width=True)
+    
+    
+            for p, label in POLUENTES.items():
+                df_proj = pd.DataFrame({
+                    "Dias": range(1, dias + 1),
+                    "Emissões evitadas (t)": (
+                        resultado["impacto_medio_dia"][p]
+                        * np.arange(1, dias + 1)
+                    )
+                })
+                fig = px.line(
+                    df_proj,
+                    x="Dias",
+                    y="Emissões evitadas (t)",
+                    title=f"Projeção acumulada – {label}",
+                    markers=True
+                )
+    
+                fig.update_layout(plot_bgcolor="white")
 
-            df_proj = pd.DataFrame({
-                "Dias": range(1, dias + 1),
-                "Emissões evitadas (t CO₂)": resultado["impacto_medio_dia"] * np.arange(1, dias + 1)
-            })
-
-            fig_proj = px.line(
-                df_proj,
-                x="Dias",
-                y="Emissões evitadas (t CO₂)",
-                title="Projeção acumulada de emissões evitadas",
-                markers=True
-            )
-
-            fig_proj.update_traces(
-                line_color="#00cc96",
-                hovertemplate="Dia %{x}<br>Emissões: %{y:.4f} t<extra></extra>",
-                hoverlabel=dict(font_color="black", bgcolor="white")
-            )
-
-            fig_proj.update_layout(
-                plot_bgcolor="white",
-                xaxis=dict(title_font_color="black", tickfont_color="black"),
-                yaxis=dict(title_font_color="black", tickfont_color="black")
-            )
-
-            st.plotly_chart(fig_proj, use_container_width=True)
-
-            densidade = gaussian_kde(resultado["resultados_diarios"])
-            x_vals = np.linspace(
-                resultado["resultados_diarios"].min(),
-                resultado["resultados_diarios"].max(),
-                300
-            )
-
-            fig_kde = go.Figure()
-
-            fig_kde.add_trace(go.Scatter(
-                x=x_vals,
-                y=densidade(x_vals),
-                mode="lines",
-                fill="tozeroy",
-                line=dict(color="#00cc96", width=3),
-                name="Distribuição Monte Carlo"
-            ))
-
-            fig_kde.add_vline(
-                x=resultado["impacto_medio_dia"],
-                line_dash="dash",
-                line_color="black",
-                annotation_text="Média",
-                annotation_position="top right"
-            )
-
-            fig_kde.update_layout(
-                title="Distribuição das emissões evitadas (t CO₂/dia)",
-                xaxis_title="Emissões evitadas",
-                yaxis_title="Densidade de probabilidade",
-                plot_bgcolor="white",
-                xaxis=dict(title_font_color="black", tickfont_color="black"),
-                yaxis=dict(title_font_color="black", tickfont_color="black")
-            )
-
-            st.plotly_chart(fig_kde, use_container_width=True)
-
+                st.plotly_chart(fig, use_container_width=True)
+    
+    
+            for p, label in POLUENTES.items():
+                densidade = gaussian_kde(resultado["resultados_diarios"][p])
+                x_vals = np.linspace(
+                    resultado["resultados_diarios"][p].min(),
+                    resultado["resultados_diarios"][p].max(),
+                    300
+                )
+    
+                fig = go.Figure()
+    
+                fig.add_trace(go.Scatter(
+                    x=x_vals,
+                    y=densidade(x_vals),
+                    mode="lines",
+                    fill="tozeroy",
+                    name=label
+                ))
+    
+                fig.add_vline(
+                    x=resultado["impacto_medio_dia"][p],
+                    line_dash="dash",
+                    annotation_text="Média"
+                )
+    
+                fig.update_layout(
+                    title=f"Distribuição das emissões evitadas – {label}",
+                    xaxis_title=label,
+                    yaxis_title="Densidade",
+                    plot_bgcolor="white"
+                )
+    
+                st.plotly_chart(fig, use_container_width=True)
+    
         except ValueError:
             st.error(
-                "Erro: o número de ônibus selecionado é maior que o total disponível na frota a diesel."
+                "Erro: a quantidade de ônibus selecionada excede o total disponível na frota a diesel."
             )
 
 
