@@ -411,7 +411,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ----- SIMULAÇÃO DE EMISSÕES EVITADAS (MONTE CARLO) -----
-st.markdown("## Simulação de emissões evitadas (Monte Carlo)")
+st.markdown("## Simulação de Monte Carlo")
 
 sim_dagster[['emissao_co2', 'emissao_nox', 'emissao_mp']] /= 1000 # converter kg para toneladas
 
@@ -511,8 +511,8 @@ with st.expander("Clique para simular"):
     modo = st.radio(
         "Escolha o tipo de simulação:",
         [
-            "Quantidade de ônibus elétricos",
-            "Meta de emissões evitadas (todos os poluentes)"
+            "Novos ônibus elétricos",
+            "Emissões evitadas"
         ]
     )
  
@@ -523,7 +523,7 @@ with st.expander("Clique para simular"):
         format="%d"
     )
  
-    if modo == "Quantidade de ônibus elétricos":
+    if modo == "Novos ônibus elétricos":
         Y = st.number_input(
             "Quantidade de novos ônibus elétricos:",
             min_value=1,
@@ -547,7 +547,7 @@ with st.expander("Clique para simular"):
 
         try:
     
-            if modo == "Meta de emissões evitadas (todos os poluentes)":
+            if modo == "Emissões evitadas":
                 df_meta = estimar_frota_para_meta(
                     sim_dagster,
                     meta_emissao=meta,
