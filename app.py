@@ -484,7 +484,7 @@ def estimar_frota_para_meta(
     N=2000,
     Y_min=1,
     Y_max=None,
-    passo=10
+    passo=1
 ):
 
     if Y_max is None:
