@@ -484,7 +484,8 @@ def estimar_frota_para_meta(
     N=2000,
     Y_min=1,
     Y_max=None,
-    passo=1
+    passo=5,
+    percentil=75
 ):
 
     if Y_max is None:
@@ -502,15 +503,18 @@ def estimar_frota_para_meta(
             dias=1
         )
 
-        medias = sim["impacto_medio_dia"]
+        pctl = {
+            p: np.percentile(sim["resultados_diarios"][p], percentil)
+            for p in poluentes
+        }
 
         resultados.append({
             "Quantidade de ônibus elétricos": Y,
-            **{POLUENTES[p]: medias[p] for p in poluentes}
+            **{f"{POLUENTES[p]} (P{percentil})": pctl[p] for p in poluentes}
         })
 
         if all(
-            medias[p] >= metas_por_poluente.get(p, 0)
+            pctl[p] >= metas_por_poluente.get(p, 0)
             for p in poluentes
         ):
             break
